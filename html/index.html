@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+
+<head>
+  <style>
+    .progress-c {
+      width: 100%;
+      height: 15px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      margin: 20px 0px;
+      overflow: hidden;
+    }
+
+    /* 初始状态设置进度条宽度为0px */
+    .progress-c>div {
+      width: 0px;
+      height: 100%;
+      background-color: yellowgreen;
+      transition: all .3s ease;
+    }
+
+    .index {
+      margin: 20px auto;
+      width: 80%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .input-group {
+      width: 80%;
+    }
+
+    #upload-file {
+      display: none;
+    }
+
+    #multiple-column span {
+      font-size: 0.5rem;
+    }
+
+
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.2.1/dist/jquery.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@9"></script>
+  <script>
+    function select() { $('#upload-file').click() }
+
+    function isNumber(value) {
+      var patrn = /^\d+(\.\d+)?$/;
+      if (patrn.exec(value) == null || value == "") {
+        return false
+      } else {
+        return true
+      }
+    }
+
+    function errorMessage(message, typesOf = 'error') {
+      Swal.fire({
+        icon: typesOf,
+        // title: 'Oops...',
+        text: message
+      })
+    }
+
+    function uploadFile() {
+      //获取上传的文件
+      if (!$('#upload-file')[0].files[0]) {
+        errorMessage('没有选择文件')
+        return
+      }
+      var uploadFile = $('#upload-file').get(0).files[0];
+      if (uploadFile.type != 'video/mp4') {
+        errorMessage('只能上传视频')
+        return
+      }
+      var formdata = new FormData();
+      formdata.append('file', uploadFile);
+      var multiple = $('#multiple').val()
+      if (!multiple || !isNumber(multiple)) {
+        errorMessage('倍数填写错误')
+        return
+      }
+      formdata.append('multiple', multiple);
+      $.ajax({
+        url: '/uploadfileurl',
+        type: 'post',
+        dataType: 'json',
+        processData: false,
+        contentType: false,
+        data: formdata,
+        xhr: function () {
+          var xhr = new XMLHttpRequest();
+          //使用XMLHttpRequest.upload监听上传过程，注册progress事件，打印回调函数中的event事件
+          xhr.upload.addEventListener('progress', function (e) {
+            // loaded代表上传了多少
+            // total代表总数为多少
+            var progressRate = (e.loaded / e.total) * 100 + '%';
+            //通过设置进度条的宽度达到效果
+            $('.progress-c > div').css('width', progressRate);
+            if (progressRate == '100%') {
+              errorMessage('正在转换中...请等待几分钟', 'info')
+            }
+          })
+          return xhr;
+        },
+        success: function (res) {
+          // console.log(res)
+          if (!res.key || !res.url) {
+            errorMessage('获取下载链接失败，请重试')
+            return
+          }
+          errorMessage('转换成功！', 'success')
+          $('#upload').attr('onclick', '')
+          $('#upload').click(function () {
+            window.location.href = res.url + res.key
+          })
+          $('#upload').removeClass('btn-primary')
+          $('#upload').addClass('btn-success')
+          $('#upload').text('点击下载')
+        }
+      })
+    }
+  </script>
+
+  <meta charset='utf-8'>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  <title>声呐工具📢</title>
+
+
+</head>
+
+<body>
+  <div class="container">
+    <div class='index'>
+
+      <h4 class="my-5">声呐工具📢</h4>
+
+      <input type="file" id="upload-file">
+      <button type="button" class="btn btn-primary" onclick="select()">选择视频</button>
+
+      <div class="progress-c my-5">
+        <div></div>
+      </div>
+
+      <div id="multiple-column" class="input-group px-3 mb-3 rounded">
+        <div class="input-group-prepend">
+          <span class="input-group-text" id="basic-addon1">放大倍数(太大会破音)</span>
+        </div>
+        <input type="text" id="multiple" class="form-control">
+      </div>
+
+      <button onclick="uploadFile()" type="button" class="btn btn-primary mt-5" id="upload">上传视频</button>
+    </div>
+  </div>
+</body>
